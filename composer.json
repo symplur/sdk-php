@@ -7,11 +7,10 @@
     "source": "https://github.com/symplur/sdk-php"
   },
   "require": {
-    "php": ">=5.6.4",
+    "php": ">=5.5.9",
     "guzzlehttp/guzzle": "~6.0"
   },
   "require-dev": {
-    "mockery/mockery": "0.9.*",
     "phpunit/phpunit": "~5.0"
   },
   "autoload": {

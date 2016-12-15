@@ -3,10 +3,8 @@
 Client SDK for the Symplur API
 
 [![Build Status](https://travis-ci.org/symplur/sdk-php.svg?branch=master)](https://travis-ci.org/symplur/sdk-php)
-[![Latest Stable Version](https://poser.pugx.org/symplur/sdk-php/v/stable)](https://packagist.org/packages/symplur/sdk-php)
-[![Total Downloads](https://poser.pugx.org/symplur/sdk-php/downloads)](https://packagist.org/packages/symplur/sdk-php)
-[![Latest Unstable Version](https://poser.pugx.org/symplur/sdk-php/v/unstable)](https://packagist.org/packages/symplur/sdk-php)
-[![License](https://poser.pugx.org/symplur/sdk-php/license)](https://packagist.org/packages/symplur/sdk-php)
+[![Latest Stable Version](https://poser.pugx.org/symplur/sdk/v/stable)](https://packagist.org/packages/symplur/sdk)
+[![License](https://poser.pugx.org/symplur/sdk/license)](https://packagist.org/packages/symplur/sdk)
 
 ### NOTE: The Symplur API has not yet been released for usage by our customers.  We are not providing API credentials yet.  We expect this to change by the end of Q1 2017.  Thank you for your patience.
 

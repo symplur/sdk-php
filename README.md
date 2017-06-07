@@ -58,7 +58,7 @@ $getter = function($name) {
 };
 $setter = function($name, $value) {
     $_SESSION[$name] = $value;
-}
+};
 $client = new Symplur\Api\Client($clientId, $clientSecret, [
     'cache_getter' => $getter,
     'cache_setter' => $setter

@@ -16,7 +16,7 @@ class Client
     private $userAgentBase = 'SymplurApiSdk/1.0';
     private $baseUri = 'https://api.symplur.com/v1';
     private $tokenPath = 'oauth/token';
-    private $timeout = 30;
+    private $timeout = 600;
 
     private $clientId;
     private $clientSecret;

@@ -1,22 +1,21 @@
 <?php
-
 namespace Symplur\Api;
 
 use GuzzleHttp\Client as Guzzle;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
+use GuzzleHttp\Promise\Promise;
+use GuzzleHttp\Psr7\Response;
 use Symplur\Api\Exceptions\BadConfigException;
 use Symplur\Api\Exceptions\BadJsonException;
 use Symplur\Api\Exceptions\InvalidCredentialsException;
 
 class Client
 {
-    private $userAgentBase = 'SymplurApiSdk/1.0';
-    private $baseUri = 'https://api.symplur.com/v1';
     private $tokenPath = 'oauth/token';
-    private $timeout = 600;
 
     private $clientId;
     private $clientSecret;
@@ -27,12 +26,22 @@ class Client
      */
     private $guzzle;
 
-    private $options = [];
+    private $guzzleDefaults = [
+        'base_uri' => 'https://api.symplur.com/v1',
+        'timeout' => 600,
+        'headers' => [
+            'User-Agent' => 'SymplurPhpSdk/1.0'
+        ]
+    ];
 
     private $mockResponses = [];
     private $transactionLog = [];
 
-    public function __construct($clientId, $clientSecret, array $options = [])
+    /**
+     * @param string $clientId Symplur Client ID
+     * @param string $clientSecret Symplur Client Secret
+     */
+    public function __construct(string $clientId, string $clientSecret)
     {
         if (!$clientId) {
             throw new BadConfigException('Client ID is empty');
@@ -42,90 +51,99 @@ class Client
 
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
-        $this->options = $options;
     }
 
-    public function setOptions(array $options)
+    /**
+     * Perform a GET request
+     *
+     * @param string $relativePath Endpoint path, relative to the API's base URI
+     * @param array $query Query parameters
+     * @return \stdClass|null JSON data structure on success, or NULL if API gives a 404 Not Found response
+     */
+    public function get(string $relativePath, array $query = [])
     {
-        $this->options += $options;
+        return $this->requestJson('GET', $relativePath, $this->makeOptions([
+            'query' => $query
+        ]));
     }
 
-    public function get($relativePath, array $query = [])
+    public function post(string $relativePath, array $formParams = [])
     {
-        return $this->requestJson('GET', $relativePath, $this->makeRequestOptions(['query' => $query]));
+        return $this->requestJson('POST', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]));
     }
 
-    public function post($relativePath, array $formParams = [])
+    public function put(string $relativePath, array $formParams = [])
     {
-        return $this->requestJson('POST', $relativePath, $this->makeRequestOptions(['form_params' => $formParams]));
+        return $this->requestJson('PUT', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]));
     }
 
-    public function put($relativePath, array $formParams = [])
+    public function patch(string $relativePath, array $formParams = [])
     {
-        return $this->requestJson('PUT', $relativePath, $this->makeRequestOptions(['form_params' => $formParams]));
+        return $this->requestJson('PATCH', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]));
     }
 
-    public function patch($relativePath, array $formParams = [])
+    public function delete(string $relativePath, array $formParams = [])
     {
-        return $this->requestJson('PATCH', $relativePath, $this->makeRequestOptions(['form_params' => $formParams]));
+        return $this->requestJson('DELETE', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]));
     }
 
-    public function delete($relativePath, array $formParams = [])
+    public function getAsync(string $relativePath, array $query = [], callable $successFunc = null) : Promise
     {
-        return $this->requestJson('DELETE', $relativePath, $this->makeRequestOptions(['form_params' => $formParams]));
+        return $this->asyncRequestJson('GET', $relativePath, $this->makeOptions([
+            'query' => $query
+        ]), $successFunc);
     }
 
-    private function makeRequestOptions(array $extraOptions = [])
+    public function postAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
     {
-        if (!isset($extraOptions['headers'])) {
-            $extraOptions['headers'] = [];
-        }
-        $extraOptions['headers']['Authorization'] = 'Bearer ' . $this->getAccessToken();
-        $extraOptions['headers']['Prefer'] = 'representation=minimal';
-
-        return $extraOptions;
+        return $this->asyncRequestJson('POST', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]), $successFunc);
     }
 
-    public function getAccessToken()
+    public function putAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
     {
-        $token = $this->accessToken;
-        if (!$token) {
-            $token = $this->getCachedParam('access_token');
-            if (!$token) {
-                try {
-                    $data = $this->requestJson('POST', $this->tokenPath, [
-                        'auth' => [$this->clientId, $this->clientSecret],
-                        'form_params' => ['grant_type' => 'client_credentials']
-                    ]);
-                } catch (ClientException $e) {
-                    $data = @json_decode($e->getResponse()->getBody());
-                    if ($data && $data->error == 'invalid_client'
-                        && substr($e->getResponse()->getHeaderLine('WWW-Authenticate'), 0, 6) == 'Basic '
-                    ) {
-                        $msg = 'Invalid or missing client credentials for %s';
-                        throw new InvalidCredentialsException(sprintf($msg, $this->getBaseUri()));
-                    }
-                    throw $e;
-                }
-
-                $token = $data->access_token;
-            }
-            $this->setAccessToken($token);
-        }
-
-        return $token;
+        return $this->asyncRequestJson('PUT', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]), $successFunc);
     }
 
-    private function requestJson($method, $relativePath, $options = [])
+    public function patchAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
+    {
+        return $this->asyncRequestJson('PATCH', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]), $successFunc);
+    }
+
+    public function deleteAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
+    {
+        return $this->asyncRequestJson('DELETE', $relativePath, $this->makeOptions([
+            'form_params' => $formParams
+        ]), $successFunc);
+    }
+
+    private function requestJson(string $method, string $relativePath, array $options = [])
     {
         try {
+echo "$method " . ltrim($relativePath, '/') . ": " . json_encode($options) . PHP_EOL;
             $response = $this->getGuzzleClient()->request($method, ltrim($relativePath, '/'), $options);
+echo $response->getStatusCode() . PHP_EOL;
 
         } catch (ClientException $e) {
             $response = $e->getResponse();
+echo $response->getStatusCode() . PHP_EOL;
+
             if (substr($response->getHeaderLine('WWW-Authenticate'), 0, 7) == 'Bearer ') {
-                $this->setAccessToken('');
-                $options = $this->makeRequestOptions($options);
+                $this->accessToken = null;
+                $options = $this->makeOptions($options);
 
                 return $this->requestJson($method, $relativePath, $options);
 
@@ -136,37 +154,108 @@ class Client
             throw $e;
         }
 
-        $data = @json_decode($response->getBody());
-        if ($data === null) {
-            $msg = 'JSON error %s: "%s" while trying to parse API response: %s';
-            throw new BadJsonException(sprintf($msg, json_last_error(), json_last_error_msg(), $response->getBody()));
+        $data = json_decode($response->getBody());
+        if (json_last_error()) {
+            throw new BadJsonException(sprintf(
+                'JSON error %s: "%s" while trying to parse API response: %s',
+                json_last_error(),
+                json_last_error_msg(),
+                $response->getBody()
+            ));
         }
 
         return $data;
     }
 
-    public function setAccessToken($token)
+    private function asyncRequestJson(
+        string $method, string $relativePath, array $options = [], callable $successFunc = null
+    ) : Promise
     {
-        $this->accessToken = $token;
-        $this->setCachedParam('access_token', $token);
+        $promise = $this->getGuzzleClient()
+            ->requestAsync($method, ltrim($relativePath, '/'), $options);
+
+        $promise->then(function(Response $response) use ($successFunc) {
+
+            $data = json_decode($response->getBody());
+            if (json_last_error()) {
+                throw new BadJsonException(sprintf(
+                    'JSON error %s: "%s" while trying to parse API response: %s',
+                    json_last_error(),
+                    json_last_error_msg(),
+                    $response->getBody()
+                ));
+            }
+
+            if ($successFunc) {
+                $successFunc($data);
+            }
+
+        }, function(RequestException $e) use ($method, $relativePath, $options, $successFunc) {
+            if ($e instanceof ClientException) {
+                $response = $e->getResponse();
+                if (substr($response->getHeaderLine('WWW-Authenticate'), 0, 7) == 'Bearer ') {
+                    $this->accessToken = null;
+                    $options = $this->makeOptions($options);
+
+                    $this->asyncRequestJson($method, $relativePath, $options);
+
+                } elseif ($response->getStatusCode() == 404) {
+                    if ($successFunc) {
+                        $successFunc(null);
+                    }
+                }
+            }
+            throw $e;
+        });
+
+        return $promise;
+    }
+
+    private function makeOptions(array $extraOptions = []) : array
+    {
+        return array_replace_recursive($extraOptions, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->getAccessToken()
+            ]
+        ]);
+    }
+
+    public function getAccessToken()
+    {
+        if (!$this->accessToken) {
+            try {
+                $data = $this->requestJson('POST', $this->tokenPath, [
+                    'auth' => [$this->clientId, $this->clientSecret],
+                    'form_params' => ['grant_type' => 'client_credentials']
+                ]);
+
+            } catch (ClientException $e) {
+                $data = json_decode($e->getResponse()->getBody());
+                if ($data && $data->error == 'invalid_client'
+                    && substr($e->getResponse()->getHeaderLine('WWW-Authenticate'), 0, 6) == 'Basic '
+                ) {
+                    throw new InvalidCredentialsException('Invalid or missing client credentials');
+                }
+                throw $e;
+            }
+
+            $this->accessToken = $data->access_token;
+        }
+
+        return $this->accessToken;
     }
 
     private function getGuzzleClient()
     {
         if (!$this->guzzle) {
-            $config = [
-                'base_uri' => $this->getBaseUri() . '/',
-                'timeout' => (@$this->options['timeout'] ?: $this->timeout),
-                'headers' => [
-                    'User-Agent' => $this->userAgentBase . ' ' . \GuzzleHttp\default_user_agent()
-                ]
-            ];
+
+            $config = $this->guzzleDefaults;
 
             if ($this->mockResponses) {
-                $stack = HandlerStack::create();
-                $stack->setHandler(new MockHandler($this->mockResponses));
-                $stack->push(Middleware::history($this->transactionLog));
-                $config['handler'] = $stack;
+                $handler = HandlerStack::create();
+                $handler->setHandler(new MockHandler($this->mockResponses));
+                $handler->push(Middleware::history($this->transactionLog));
+                $config['handler'] = $handler;
             }
 
             $this->guzzle = new Guzzle($config);
@@ -175,31 +264,14 @@ class Client
         return $this->guzzle;
     }
 
-    private function getBaseUri()
+    public function addGuzzleDefaults(array $defaults)
     {
-        return rtrim(@$this->options['base_uri'] ?: $this->baseUri, '/');
+        $this->guzzleDefaults = array_replace_recursive($this->guzzleDefaults, $defaults);
     }
 
-    private function getCachedParam($name)
+    public function setAccessToken(string $token)
     {
-        $getter = @$this->options['cache_getter'];
-        if ($getter) {
-            if (!is_callable($getter)) {
-                throw new BadConfigException('Cache getter is not callable');
-            }
-            return call_user_func($getter, $name);
-        }
-    }
-
-    private function setCachedParam($name, $value)
-    {
-        $setter = @$this->options['cache_setter'];
-        if ($setter) {
-            if (!is_callable($setter)) {
-                throw new BadConfigException('Cache setter is not callable');
-            }
-            call_user_func($setter, $name, $value);
-        }
+        $this->accessToken = $token;
     }
 
     public function setMockResponses(array $mockResponses = [])

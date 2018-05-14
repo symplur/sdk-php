@@ -1,11 +1,11 @@
 <?php
-
 namespace Symplur\Api\Tests;
 
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\TestCase;
 use Symplur\Api\Client;
 
-class ClientTest extends \PHPUnit_Framework_TestCase
+class ClientTest extends TestCase
 {
     /**
      * @var Client
@@ -110,7 +110,6 @@ class ClientTest extends \PHPUnit_Framework_TestCase
     {
         $this->client->setMockResponses([
             new Response(200, [], json_encode(['access_token' => 'abcdefg'])),
-//            new Response(401, ['WWW-Authenticate' => 'Bearer realm="Venus"'], json_encode(['error' => 'invalid_client'])),
         ]);
 
         $token = $this->client->getAccessToken();

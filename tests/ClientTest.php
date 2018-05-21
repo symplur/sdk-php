@@ -3,12 +3,12 @@ namespace Symplur\Api\Tests;
 
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
-use Symplur\Api\Client;
+use Symplur\Api\ClientHarness;
 
 class ClientTest extends TestCase
 {
     /**
-     * @var Client
+     * @var ClientHarness
      */
     private $client;
 
@@ -16,7 +16,7 @@ class ClientTest extends TestCase
     {
         parent::setUp();
 
-        $this->client = new Client('myid', 'mysecret', ['base_uri' => 'http://example.com']);
+        $this->client = new ClientHarness('myid', 'mysecret', ['base_uri' => 'http://example.com']);
         $this->client->setMockResponses();
     }
 
@@ -85,27 +85,6 @@ class ClientTest extends TestCase
         self::assertEquals(2, count($this->client->getTransactionLog()));
     }
 
-    public function testCanUseCache()
-    {
-        $cache = [];
-        $this->client->setOptions([
-            'cache_getter' => function($name) use (&$cache) { return @$cache[$name]; },
-            'cache_setter' => function($name, $value) use (&$cache) { $cache[$name] = $value; },
-        ]);
-
-        $this->client->setMockResponses([
-            new Response(200, [], json_encode(['access_token' => 'abcdefg'])),
-            new Response(200, [], json_encode(['title' => 'Wun page'])),
-            new Response(200, [], json_encode(['title' => 'Nuther page'])),
-        ]);
-
-        $this->client->get('/foo/yak');
-        $this->client->get('/foo/zat');
-
-        self::assertEquals('abcdefg', $cache['access_token']);
-        self::assertEquals(3, count($this->client->getTransactionLog()));
-    }
-
     public function testCanGetAccessTokenFromServer()
     {
         $this->client->setMockResponses([
@@ -115,20 +94,6 @@ class ClientTest extends TestCase
         $token = $this->client->getAccessToken();
 
         self::assertEquals('abcdefg', $token);
-    }
-
-    public function testCanUseAccessTokenFromCache()
-    {
-        $cache = ['access_token' => 'v83yb45voqc'];
-
-        $this->client->setOptions([
-            'cache_getter' => function($name) use (&$cache) { return @$cache[$name]; },
-            'cache_setter' => function($name, $value) use (&$cache) { $cache[$name] = $value; },
-        ]);
-
-        $token = $this->client->getAccessToken();
-
-        self::assertEquals($cache['access_token'], $token);
     }
 
     public function testCanGracefullyRegenerateTokenIfExpired()

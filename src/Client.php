@@ -1,12 +1,9 @@
 <?php
 namespace Symplur\Api;
 
-use GuzzleHttp\Client as Guzzle;
+use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\Promise;
 use GuzzleHttp\Psr7\Response;
 use Symplur\Api\Exceptions\BadConfigException;
@@ -15,18 +12,7 @@ use Symplur\Api\Exceptions\InvalidCredentialsException;
 
 class Client
 {
-    private $tokenPath = 'oauth/token';
-
-    private $clientId;
-    private $clientSecret;
-    private $accessToken;
-
-    /**
-     * @var Guzzle
-     */
-    private $guzzle;
-
-    private $guzzleDefaults = [
+    protected $options = [
         'base_uri' => 'https://api.symplur.com/v1',
         'timeout' => 600,
         'headers' => [
@@ -34,14 +20,21 @@ class Client
         ]
     ];
 
-    private $mockResponses = [];
-    private $transactionLog = [];
+    protected $clientId;
+    protected $clientSecret;
+    protected $accessToken;
+
+    /**
+     * @var GuzzleClient
+     */
+    protected $guzzle;
 
     /**
      * @param string $clientId Symplur Client ID
      * @param string $clientSecret Symplur Client Secret
+     * @param array $options Extra options to be passed straight into Guzzle HTTP Client (not usually needed)
      */
-    public function __construct(string $clientId, string $clientSecret)
+    public function __construct(string $clientId, string $clientSecret, array $options = [])
     {
         if (!$clientId) {
             throw new BadConfigException('Client ID is empty');
@@ -51,6 +44,8 @@ class Client
 
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
+
+        $this->options = array_replace_recursive($this->options, $options);
     }
 
     /**
@@ -130,16 +125,13 @@ class Client
         ]), $successFunc);
     }
 
-    private function requestJson(string $method, string $relativePath, array $options = [])
+    protected function requestJson(string $method, string $relativePath, array $options = [])
     {
         try {
-echo "$method " . ltrim($relativePath, '/') . ": " . json_encode($options) . PHP_EOL;
-            $response = $this->getGuzzleClient()->request($method, ltrim($relativePath, '/'), $options);
-echo $response->getStatusCode() . PHP_EOL;
+            $response = $this->getGuzzle()->request($method, ltrim($relativePath, '/'), $options);
 
         } catch (ClientException $e) {
             $response = $e->getResponse();
-echo $response->getStatusCode() . PHP_EOL;
 
             if (substr($response->getHeaderLine('WWW-Authenticate'), 0, 7) == 'Bearer ') {
                 $this->accessToken = null;
@@ -167,11 +159,11 @@ echo $response->getStatusCode() . PHP_EOL;
         return $data;
     }
 
-    private function asyncRequestJson(
+    protected function asyncRequestJson(
         string $method, string $relativePath, array $options = [], callable $successFunc = null
     ) : Promise
     {
-        $promise = $this->getGuzzleClient()
+        $promise = $this->getGuzzle()
             ->requestAsync($method, ltrim($relativePath, '/'), $options);
 
         $promise->then(function(Response $response) use ($successFunc) {
@@ -211,7 +203,7 @@ echo $response->getStatusCode() . PHP_EOL;
         return $promise;
     }
 
-    private function makeOptions(array $extraOptions = []) : array
+    protected function makeOptions(array $extraOptions = []) : array
     {
         return array_replace_recursive($extraOptions, [
             'headers' => [
@@ -220,13 +212,18 @@ echo $response->getStatusCode() . PHP_EOL;
         ]);
     }
 
-    public function getAccessToken()
+    protected function getAccessToken() : string
     {
         if (!$this->accessToken) {
             try {
-                $data = $this->requestJson('POST', $this->tokenPath, [
-                    'auth' => [$this->clientId, $this->clientSecret],
-                    'form_params' => ['grant_type' => 'client_credentials']
+                $data = $this->requestJson('POST', 'oauth/token', [
+                    'auth' => [
+                        $this->clientId,
+                        $this->clientSecret
+                    ],
+                    'form_params' => [
+                        'grant_type' => 'client_credentials'
+                    ]
                 ]);
 
             } catch (ClientException $e) {
@@ -245,44 +242,21 @@ echo $response->getStatusCode() . PHP_EOL;
         return $this->accessToken;
     }
 
-    private function getGuzzleClient()
+    protected function getGuzzle() : GuzzleClient
     {
         if (!$this->guzzle) {
-
-            $config = $this->guzzleDefaults;
-
-            if ($this->mockResponses) {
-                $handler = HandlerStack::create();
-                $handler->setHandler(new MockHandler($this->mockResponses));
-                $handler->push(Middleware::history($this->transactionLog));
-                $config['handler'] = $handler;
-            }
-
-            $this->guzzle = new Guzzle($config);
+            $config = $this->makeGuzzleConfig();
+            $this->guzzle = new GuzzleClient($config);
         }
 
         return $this->guzzle;
     }
 
-    public function addGuzzleDefaults(array $defaults)
+    protected function makeGuzzleConfig() : array
     {
-        $this->guzzleDefaults = array_replace_recursive($this->guzzleDefaults, $defaults);
-    }
+        $config = $this->options;
+        $config['base_uri'] = rtrim($config['base_uri'], '/') . '/';
 
-    public function setAccessToken(string $token)
-    {
-        $this->accessToken = $token;
-    }
-
-    public function setMockResponses(array $mockResponses = [])
-    {
-        $this->mockResponses = $mockResponses;
-        $this->transactionLog = [];
-        $this->guzzle = null;
-    }
-
-    public function getTransactionLog()
-    {
-        return $this->transactionLog;
+        return $config;
     }
 }

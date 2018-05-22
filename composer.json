@@ -1,17 +1,17 @@
 {
   "name": "symplur/sdk",
-  "description": "Client SDK for Symplur API",
+  "description": "Client SDK for the Symplur API",
   "license": "MIT",
   "keywords": ["symplur", "api", "sdk"],
   "support": {
     "source": "https://github.com/symplur/sdk-php"
   },
   "require": {
-    "php": ">=5.5.9",
-    "guzzlehttp/guzzle": "~6.0"
+    "php": "^7.0",
+    "guzzlehttp/guzzle": "^6.3"
   },
   "require-dev": {
-    "phpunit/phpunit": "~4.8"
+    "phpunit/phpunit": "^6.0"
   },
   "autoload": {
     "psr-4": {

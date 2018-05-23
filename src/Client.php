@@ -9,11 +9,14 @@ use Symplur\Api\Exceptions\InvalidCredentialsException;
 
 class Client
 {
+    /**
+     * @var array Default options used for constructing Guzzle client
+     */
     protected $options = [
-        'base_uri' => 'https://api.symplur.com/v1',
+        'base_uri' => 'https://api.symplur.com/v1/',
         'timeout' => 600,
         'headers' => [
-            'User-Agent' => 'SymplurPhpSdk/1.0'
+            'User-Agent' => 'SymplurPhpSdk/2.0.0'
         ]
     ];
 
@@ -46,10 +49,10 @@ class Client
     }
 
     /**
-     * Perform a GET request
+     * Perform a GET request to the Symplur API
      *
-     * @param string $relativePath Endpoint path, relative to the API's base URI
-     * @param array $query Query parameters
+     * @param string $relativePath Endpoint path relative to the API's base URI
+     * @param array $query Optional params to be passed as a URL query string
      * @return \stdClass|null JSON data structure on success, or NULL if API gives a 404 Not Found response
      */
     public function get(string $relativePath, array $query = [])
@@ -59,6 +62,13 @@ class Client
         ]));
     }
 
+    /**
+     * Perform a POST request to the Symplur API
+     *
+     * @param string $relativePath Endpoint path relative to the API's base URI
+     * @param array $formParams Optional params to be passsed in the request body
+     * @return \stdClass|null JSON data structure on success, or NULL if API gives a 404 Not Found response
+     */
     public function post(string $relativePath, array $formParams = [])
     {
         return $this->requestJson('POST', $relativePath, $this->makeOptions([
@@ -66,6 +76,13 @@ class Client
         ]));
     }
 
+    /**
+     * Perform a PUT request to the Symplur API
+     *
+     * @param string $relativePath Endpoint path relative to the API's base URI
+     * @param array $formParams Optional params to be passed in the request body
+     * @return \stdClass|null JSON data structure on success, or NULL if API gives a 404 Not Found response
+     */
     public function put(string $relativePath, array $formParams = [])
     {
         return $this->requestJson('PUT', $relativePath, $this->makeOptions([
@@ -73,13 +90,27 @@ class Client
         ]));
     }
 
-    public function patch(string $relativePath, array $formParams = [])
+    /**
+     * Perform a PATCH request to the Symplur API
+     *
+     * @param string $relativePath Endpoint path relative to the API's base URI
+     * @param array $formParams Params to be passed in the request body. Assumes RFC 7396 Json Merge Patch format.
+     * @return \stdClass|null JSON data structure on success, or NULL if API gives a 404 Not Found response
+     */
+    public function patch(string $relativePath, array $formParams)
     {
         return $this->requestJson('PATCH', $relativePath, $this->makeOptions([
             'form_params' => $formParams
         ]));
     }
 
+    /**
+     * Perform a DELETE request to the Symplur API
+     *
+     * @param string $relativePath Endpoint path relative to the API's base URI
+     * @param array $formParams Optional parameters to be passed in the request body
+     * @return \stdClass|null JSON data structure on success, or NULL if API gives a 404 Not Found response
+     */
     public function delete(string $relativePath, array $formParams = [])
     {
         return $this->requestJson('DELETE', $relativePath, $this->makeOptions([

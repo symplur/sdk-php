@@ -20,6 +20,22 @@ class ClientTest extends TestCase
         $this->client->setMockResponses();
     }
 
+    /**
+     * @expectedException \Symplur\Api\Exceptions\BadConfigException
+     */
+    public function testConstructingWithMissingClientIdFails()
+    {
+        new ClientHarness('', 'mysecret', ['base_uri' => 'http://example.com']);
+    }
+
+    /**
+     * @expectedException \Symplur\Api\Exceptions\BadConfigException
+     */
+    public function testConstructingWithMissingClientSecretFails()
+    {
+        new ClientHarness('myid', '', ['base_uri' => 'http://example.com']);
+    }
+
     public function testCanGet()
     {
         $this->client->setMockResponses([
@@ -125,6 +141,18 @@ class ClientTest extends TestCase
     }
 
     /**
+     * @expectedException \GuzzleHttp\Exception\ClientException
+     */
+    public function testOtherClientExceptionsAreUnhandled()
+    {
+        $this->client->setMockResponses([
+            new Response(400, [])
+        ]);
+
+        $this->client->get('/foo/zat');
+    }
+
+    /**
      * @expectedException \Symplur\Api\Exceptions\BadJsonException
      */
     public function testCanDetectUnparsableJson()
@@ -135,5 +163,18 @@ class ClientTest extends TestCase
         ]);
 
         $this->client->get('/foo/zat');
+    }
+
+    public function test404GracefullyReturnsNull()
+    {
+        $this->client->setMockResponses([
+            new Response(200, [], json_encode(['access_token' => 'abcdefg'])),
+            new Response(404)
+        ]);
+
+        $data = $this->client->get('/foo/missing');
+
+        self::assertNull($data);
+        self::assertEquals(2, count($this->client->getTransactionLog()));
     }
 }

@@ -3,9 +3,6 @@ namespace Symplur\Api;
 
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Promise\Promise;
-use GuzzleHttp\Psr7\Response;
 use Symplur\Api\Exceptions\BadConfigException;
 use Symplur\Api\Exceptions\BadJsonException;
 use Symplur\Api\Exceptions\InvalidCredentialsException;
@@ -90,41 +87,6 @@ class Client
         ]));
     }
 
-    public function getAsync(string $relativePath, array $query = [], callable $successFunc = null) : Promise
-    {
-        return $this->asyncRequestJson('GET', $relativePath, $this->makeOptions([
-            'query' => $query
-        ]), $successFunc);
-    }
-
-    public function postAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
-    {
-        return $this->asyncRequestJson('POST', $relativePath, $this->makeOptions([
-            'form_params' => $formParams
-        ]), $successFunc);
-    }
-
-    public function putAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
-    {
-        return $this->asyncRequestJson('PUT', $relativePath, $this->makeOptions([
-            'form_params' => $formParams
-        ]), $successFunc);
-    }
-
-    public function patchAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
-    {
-        return $this->asyncRequestJson('PATCH', $relativePath, $this->makeOptions([
-            'form_params' => $formParams
-        ]), $successFunc);
-    }
-
-    public function deleteAsync(string $relativePath, array $formParams = [], callable $successFunc = null) : Promise
-    {
-        return $this->asyncRequestJson('DELETE', $relativePath, $this->makeOptions([
-            'form_params' => $formParams
-        ]), $successFunc);
-    }
-
     protected function requestJson(string $method, string $relativePath, array $options = [])
     {
         try {
@@ -159,50 +121,6 @@ class Client
         return $data;
     }
 
-    protected function asyncRequestJson(
-        string $method, string $relativePath, array $options = [], callable $successFunc = null
-    ) : Promise
-    {
-        $promise = $this->getGuzzle()
-            ->requestAsync($method, ltrim($relativePath, '/'), $options);
-
-        $promise->then(function(Response $response) use ($successFunc) {
-
-            $data = json_decode($response->getBody());
-            if (json_last_error()) {
-                throw new BadJsonException(sprintf(
-                    'JSON error %s: "%s" while trying to parse API response: %s',
-                    json_last_error(),
-                    json_last_error_msg(),
-                    $response->getBody()
-                ));
-            }
-
-            if ($successFunc) {
-                $successFunc($data);
-            }
-
-        }, function(RequestException $e) use ($method, $relativePath, $options, $successFunc) {
-            if ($e instanceof ClientException) {
-                $response = $e->getResponse();
-                if (substr($response->getHeaderLine('WWW-Authenticate'), 0, 7) == 'Bearer ') {
-                    $this->accessToken = null;
-                    $options = $this->makeOptions($options);
-
-                    $this->asyncRequestJson($method, $relativePath, $options);
-
-                } elseif ($response->getStatusCode() == 404) {
-                    if ($successFunc) {
-                        $successFunc(null);
-                    }
-                }
-            }
-            throw $e;
-        });
-
-        return $promise;
-    }
-
     protected function makeOptions(array $extraOptions = []) : array
     {
         return array_replace_recursive($extraOptions, [
@@ -227,9 +145,10 @@ class Client
                 ]);
 
             } catch (ClientException $e) {
-                $data = json_decode($e->getResponse()->getBody());
-                if ($data && $data->error == 'invalid_client'
-                    && substr($e->getResponse()->getHeaderLine('WWW-Authenticate'), 0, 6) == 'Basic '
+                $response = $e->getResponse();
+                $data = json_decode($response->getBody());
+                if (!empty($data->error) && $data->error == 'invalid_client'
+                    && substr($response->getHeaderLine('WWW-Authenticate'), 0, 6) == 'Basic '
                 ) {
                     throw new InvalidCredentialsException('Invalid or missing client credentials');
                 }

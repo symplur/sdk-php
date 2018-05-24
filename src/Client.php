@@ -16,7 +16,7 @@ class Client
         'base_uri' => 'https://api.symplur.com/v1/',
         'timeout' => 600,
         'headers' => [
-            'User-Agent' => 'SymplurPhpSdk/2.0.0'
+            'User-Agent' => 'SymplurPhpSdk/2.0.3'
         ]
     ];
 

@@ -12,7 +12,7 @@ This library is intended to simplify using the Symplur API in your PHP applicati
 First, [Contact Symplur](https://www.symplur.com/contact/) to get your API credentials. This will consist of a Client ID and a Client Secret, which represent your organization.  Then install this library using [Composer](https://getcomposer.org/) and construct the client object by inputting those strings. That's it! You're ready to start using it.
 
 ```
-# composer require symplur/sdk-php
+# composer require symplur/sdk
 ```
 
 ```

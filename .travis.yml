@@ -1,8 +1,12 @@
 language: php
 php:
-  - 7.0
-  - 7.1
-  - 7.2
+- 7.0
+- 7.1
+- 7.2
 before_script:
-  - composer install
+- composer install
 script: vendor/bin/phpunit
+notifications:
+  slack:
+    rooms:
+      secure: Eb/tIbxwYc6hqAokhA13pZj3KTUinLsGUDoVOfkhY4N8q9hLaW12SJEFRxMjr2fnsIa0wSsc7GB2fQF8EQ5L87jLqwIKOsNFC7jFDAfw8JxFdpOolKSdiUmQSwrLVxTG61VL1R5h6I2SdGKcgraRZSfCuTJndHdgamCMVWGCNrasiQXzWBUDeyfOO+SoHgCW18WWdK+6D8k0KuHZNJi0WieUg7zBBJ36A0lVASnb/Pi2xQuMYtGhWfCr8N9MtxeDI/8tJd3D+gXz9j/ubRizyegb8xL9V5+eAl7aR4F3yNFRt8JMk3FsdRuqhuF2AoIjPQQ3MD4iiiG9oi/mCIo9sLbdW2Mt/8yllLTaTsySfpvEymF8qHtyM6Ca8DO6fM6BpP0azvhRtnEBBZRqaWiZVsqeQ5Db8gagWPxHvDR7FsHJJdNfn28rzWp142XXTSEwIelj4y0+qD8+DY4+WY0/1rPa1HMU0C0hNqHylykgvvCZL9VNQyCo2gr/Id5aFbjXNYNtUNAC+Sz//+yxuhwqVsWgcGO+MVnsY+sfMMn6ytJyiWkN2TmMosPzqxwumaBFvfoUgU5LDA/Dh5qbqMERPvhPfJF/KxQar4CqFx17OXRNtG3DTMQkCOoz9IBH7YG/DRI8NVJaNo8ZX3o3eaOyTaJRLex0H9D/t4BDso4E+ZI=

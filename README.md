@@ -33,7 +33,8 @@ $data = $client->get('twitter/analytics/people/influencers', [
 ]);
 ```
 
-Please see the [Symplur API Documentation](https://api.symplur.com/v1/docs) for details on the endpoints, inputs, and outputs.
+A great place to start your journey is to first read the [Getting Started](https://docs.symplur.com/page/getting-started) document.
+Please see the [Symplur API Documentation](https://docs.symplur.com) for details on the endpoints, inputs, and outputs. 
 
 # Client Reference
 
